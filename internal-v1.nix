@@ -405,6 +405,8 @@ rec {
         throw "npmlock2nix is called with nodejs version ${nodejs.version}, which is currently not supported, see https://github.com/nix-community/npmlock2nix/issues/153 for more information";
       assert (builtins.typeOf preInstallLinks != "set") ->
         throw "`preInstallLinks` must be an attributeset of attributesets";
+      assert !(builtins.pathExists packageLockJson) ->
+        throw "the defined `packageLockJson` file doesn't exist. Is your `src` (or `packageLockJson`) attribute pointing to the right place?";
       let
         cleanArgs = builtins.removeAttrs args [ "src" "packageJson" "packageLockJson" "buildInputs" "nativeBuildInputs" "nodejs" "preBuild" "postBuild" "preInstallLinks" "sourceOverrides" "githubSourceHashMap" ];
         lockfile = readLockfile packageLockJson;
