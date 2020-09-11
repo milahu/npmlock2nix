@@ -23,12 +23,18 @@ rec {
   # Type: String -> Throw
   throw = str: builtins.throw "[npmlock2nix] ${str}";
 
+  # Description: Replace all "bad" characters (those that aren't allowed in nix paths) with underscores.
+  # Type: String -> String
+  makeSafeName = name:
+    lib.replaceStrings ["@" "/"] ["_" "_"] name;
+
   # Description: Turns an npm lockfile dependency into an attribute set as needed by fetchurl
   # Type: String -> Set -> Set
   makeSourceAttrs = name: dependency:
     assert !(dependency ? resolved) -> throw "Missing `resolved` attribute for dependency `${name}`.";
     assert !(dependency ? integrity) -> throw "Missing `integrity` attribute for dependency `${name}`.";
     {
+      name = makeSafeName name;
       url = dependency.resolved;
       # FIXME: for backwards compatibility we should probably set the
       #        `sha1`, `sha256`, `sha512` … attributes depending on the string
