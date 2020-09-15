@@ -600,6 +600,9 @@ rec {
         runHook postBuild
       '';
 
-      passthru = passthru // { node_modules = nm; };
+      passthru = passthru // {
+        node_modules = nm;
+        inherit (nm) nodejs;
+      };
     } // extraAttrs);
 }
