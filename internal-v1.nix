@@ -35,7 +35,7 @@ rec {
   # Type: String -> Throw
   throw = str: builtins.throw "[npmlock2nix] ${str}";
 
-  yarn = callPackage ./yarn.nix {};
+  yarn = callPackage ./yarn.nix { internal = self; };
 
   # Description: Replace all "bad" characters (those that aren't allowed in nix paths) with underscores.
   # Type: String -> String
@@ -619,4 +619,4 @@ rec {
         inherit (nm) nodejs;
       };
     } // extraAttrs);
-}
+}; in self
