@@ -40,7 +40,7 @@ rec {
   # Description: Replace all "bad" characters (those that aren't allowed in nix paths) with underscores.
   # Type: String -> String
   makeSafeName = name:
-    lib.replaceStrings ["@" "/" "^"] ["_" "_" "_"] name;
+    lib.substring 0 20 (lib.replaceStrings ["@" "/" "^" "\"" "," " " "~" "|" ">" "<" "*"] ["_" "_" "_" "_" "_" "_" "_" "_" "_" "_" "_"] name);
 
   # Description: Turns an npm lockfile dependency into an attribute set as needed by fetchurl
   # Type: String -> Set -> Set
@@ -592,6 +592,7 @@ rec {
     , installPhase
     , node_modules_attrs ? { }
     , node_modules_mode ? "symlink"
+    , node_modules ? null
     , buildInputs ? [ ]
     , passthru ? { }
     , ...
