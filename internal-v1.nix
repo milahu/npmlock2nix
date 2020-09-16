@@ -1,4 +1,16 @@
-{ nodejs-14_x, jq, openssl, stdenv, mkShell, lib, fetchurl, writeText, writeTextFile, runCommand, fetchFromGitHub }:
+{ lib
+, nodejs-14_x
+, jq
+, openssl
+, stdenv
+, mkShell
+, fetchurl
+, writeText
+, writeTextFile
+, runCommand
+, fetchFromGitHub
+, callPackage
+}:
 rec {
   # Versions >= 15 use npm >= 7, which uses npm lockfile version 2, which we don't support yet
   # See the assertion in the node_modules function
@@ -23,10 +35,12 @@ rec {
   # Type: String -> Throw
   throw = str: builtins.throw "[npmlock2nix] ${str}";
 
+  yarn = callPackage ./yarn.nix {};
+
   # Description: Replace all "bad" characters (those that aren't allowed in nix paths) with underscores.
   # Type: String -> String
   makeSafeName = name:
-    lib.replaceStrings ["@" "/"] ["_" "_"] name;
+    lib.replaceStrings ["@" "/" "^"] ["_" "_" "_"] name;
 
   # Description: Turns an npm lockfile dependency into an attribute set as needed by fetchurl
   # Type: String -> Set -> Set
