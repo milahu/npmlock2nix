@@ -196,6 +196,7 @@ rec {
     let
       isBundled = spec ? bundled && spec.bundled == true;
       hasGitHubRequires = spec: (spec ? requires) && (lib.any (x: lib.hasPrefix "github:" x) (lib.attrValues spec.requires));
+      patchFrom = builtins.removeAttrs spec [ "from" ]; # NOTE we must either remove package.from, or replace it with a file://....tar.gz link
       patchSource = lib.optionalAttrs (!isBundled) (makeSource sourceHashFunc name spec);
       patchRequiresSources = lib.optionalAttrs (hasGitHubRequires spec) { requires = (patchRequires sourceHashFunc versionOfRequireSet name spec.requires); };
       patchDependenciesSources = lib.optionalAttrs (spec ? dependencies) { dependencies = lib.mapAttrs (patchDependency sourceHashFunc versionOfRequireSet) spec.dependencies; };
@@ -204,7 +205,7 @@ rec {
       # - `resolved` set to a path in the nix store (`patchSource`)
       # - All `requires` entries of this dependency that are set to github URLs set to a path in the nix store (`patchRequiresSources`)
       # - This needs to be done recursively for all `dependencies` in the lockfile (`patchDependenciesSources`)
-    (spec // patchSource // patchRequiresSources // patchDependenciesSources);
+    (patchFrom // patchSource // patchRequiresSources // patchDependenciesSources);
 
   # Description: Takes a Path to a lockfile and returns the patched version as attribute set
   # Type: Fn -> Path -> Set
