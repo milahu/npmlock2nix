@@ -365,7 +365,8 @@ rec {
 
               if grep -I -q -r '/bin/' .; then
                 source $TMP/preinstall-env
-                patchShebangs .
+                patchShebangs . | tail -n+2
+                # tail -n+2: remove output "patching script interpreter paths in ." (DIRTY)
               fi
             '';
           executable = true;
@@ -401,11 +402,24 @@ rec {
 
         buildPhase = ''
           runHook preBuild
+
+          # DEBUG
+          #set -o xtrace # print all commands
+          #cat package-lock.json | jq -r
+          #cat package.json | jq -r
+
           mkdir -p node_modules/.hooks
           declare -pf > $TMP/preinstall-env
           ln -s ${preinstall_node_modules}/node_modules/.hooks/prepare node_modules/.hooks/preinstall
           export HOME=.
-          npm install --offline --nodedir=${nodeSource nodejs}
+
+          # npm --silent: remove npm "trace" output:
+          # > some-package@0.0.1 preinstall /build/node_modules/some-package
+          # > /build/node_modules/.hooks/preinstall
+          #
+          echo "run 'npm install' ..."
+          npm --silent install --offline --nodedir=${nodeSource nodejs}
+
           test -d node_modules/.bin && patchShebangs node_modules/.bin
           rm -rf node_modules/.hooks
           runHook postBuild
