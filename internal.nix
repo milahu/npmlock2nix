@@ -166,17 +166,29 @@ rec {
     };
 
   # Description: Patch the `requires` attributes of a dependency spec to refer to paths in the store
-  # Type: Fn -> String -> Set -> Set
-  patchRequires = sourceHashFunc: name: requires:
+  # Type: Fn -> Set -> String -> Set -> Set
+  patchRequires = sourceHashFunc: versionOfRequireSet: name: requires:
     let
-      patchReq = name: version: if lib.hasPrefix "github:" version then stringToTgzPath sourceHashFunc name version else version;
+      patchReq = name: versionDirty:
+        let
+          # resolve branch-versions to commit-versions
+          version =
+            if builtins.hasAttr versionDirty versionOfRequireSet
+            then builtins.getAttr versionDirty versionOfRequireSet
+            else versionDirty
+          ;
+        in
+        if lib.hasPrefix "github:" version
+        then (stringToTgzPath sourceHashFunc name version)
+        else version
+      ;
     in
     lib.mapAttrs patchReq requires;
 
 
   # Description: Patches a single lockfile dependency (recursively) by replacing the resolved URL with a store path
-  # Type: Fn -> String -> Set -> Set
-  patchDependency = sourceHashFunc: name: spec:
+  # Type: Fn -> Set -> String -> Set -> Set
+  patchDependency = sourceHashFunc: versionOfRequireSet: name: spec:
     assert (builtins.typeOf name != "string") ->
       throw "Name of dependency ${toString name} must be a string";
     assert (builtins.typeOf spec != "set") ->
@@ -185,7 +197,7 @@ rec {
       isBundled = spec ? bundled && spec.bundled == true;
       hasGitHubRequires = spec: (spec ? requires) && (lib.any (x: lib.hasPrefix "github:" x) (lib.attrValues spec.requires));
       patchSource = lib.optionalAttrs (!isBundled) (makeSource sourceHashFunc name spec);
-      patchRequiresSources = lib.optionalAttrs (hasGitHubRequires spec) { requires = (patchRequires sourceHashFunc name spec.requires); };
+      patchRequiresSources = lib.optionalAttrs (hasGitHubRequires spec) { requires = (patchRequires sourceHashFunc versionOfRequireSet name spec.requires); };
       patchDependenciesSources = lib.optionalAttrs (spec ? dependencies) { dependencies = lib.mapAttrs (patchDependency sourceHashFunc) spec.dependencies; };
     in
     # For our purposes we need a dependency with
@@ -199,9 +211,16 @@ rec {
   patchLockfile = sourceHashFunc: file:
     assert (builtins.typeOf file != "path" && builtins.typeOf file != "string") ->
       throw "file ${toString file} must be a path or string";
-    let content = readLockfile file; in
+    let
+      content = readLockfile file;
+      # resolve branch-versions to commit-versions
+      versionOfRequireSet = lib.mapAttrs'
+        (n: v: lib.nameValuePair v.from v.version)
+        (lib.filterAttrs (n: v: builtins.hasAttr "from" v ) content.dependencies)
+      ;
+    in
     content // {
-      dependencies = lib.mapAttrs (patchDependency sourceHashFunc) content.dependencies;
+      dependencies = lib.mapAttrs (patchDependency sourceHashFunc versionOfRequireSet) (content.dependencies);
     };
 
   # Description: Rewrite all the `github:` references to wildcards.
