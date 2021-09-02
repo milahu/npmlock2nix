@@ -198,7 +198,7 @@ rec {
       hasGitHubRequires = spec: (spec ? requires) && (lib.any (x: lib.hasPrefix "github:" x) (lib.attrValues spec.requires));
       patchSource = lib.optionalAttrs (!isBundled) (makeSource sourceHashFunc name spec);
       patchRequiresSources = lib.optionalAttrs (hasGitHubRequires spec) { requires = (patchRequires sourceHashFunc versionOfRequireSet name spec.requires); };
-      patchDependenciesSources = lib.optionalAttrs (spec ? dependencies) { dependencies = lib.mapAttrs (patchDependency sourceHashFunc) spec.dependencies; };
+      patchDependenciesSources = lib.optionalAttrs (spec ? dependencies) { dependencies = lib.mapAttrs (patchDependency sourceHashFunc versionOfRequireSet) spec.dependencies; };
     in
     # For our purposes we need a dependency with
       # - `resolved` set to a path in the nix store (`patchSource`)
