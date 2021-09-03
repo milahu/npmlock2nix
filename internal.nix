@@ -54,6 +54,13 @@ rec {
       rev = builtins.elemAt parts 6;
     };
 
+  # Description: Takes a version string
+  # of the format "[[npm:][@org/]name@]number"
+  # and returns the number
+  # Type: String -> String
+  getVersionNumber = str:
+    lib.lists.last (builtins.split "@" str);
+
   # Description: Takes an attribute set describing a git dependency and returns
   # a .tgz of the repository as store path. If the attribute hash contains a
   # hash attribute it will provide the value to `fetchFromGitHub` which will
@@ -197,6 +204,11 @@ rec {
       isBundled = spec ? bundled && spec.bundled == true;
       hasGitHubRequires = spec: (spec ? requires) && (lib.any (x: lib.hasPrefix "github:" x) (lib.attrValues spec.requires));
       patchFrom = builtins.removeAttrs spec [ "from" ]; # NOTE we must either remove package.from, or replace it with a file://....tar.gz link
+      # patchVersion: workaround for a possible bug in npm 6
+      # error is ENOTCACHED, produced by package.version = npm:name@number
+      # https://github.com/nix-community/npmlock2nix/issues/45
+      # note: "npm:" prefix is missing, after parsing version "npm:name@1.2.3" from json. why?
+      patchVersion = { version = (if (builtins.match ".*@.*" spec.version != null) then (getVersionNumber spec.version) else spec.version); };
       patchSource = lib.optionalAttrs (!isBundled) (makeSource sourceHashFunc name spec);
       patchRequiresSources = lib.optionalAttrs (hasGitHubRequires spec) { requires = (patchRequires sourceHashFunc versionOfRequireSet name spec.requires); };
       patchDependenciesSources = lib.optionalAttrs (spec ? dependencies) { dependencies = lib.mapAttrs (patchDependency sourceHashFunc versionOfRequireSet) spec.dependencies; };
@@ -205,7 +217,8 @@ rec {
       # - `resolved` set to a path in the nix store (`patchSource`)
       # - All `requires` entries of this dependency that are set to github URLs set to a path in the nix store (`patchRequiresSources`)
       # - This needs to be done recursively for all `dependencies` in the lockfile (`patchDependenciesSources`)
-    (patchFrom // patchSource // patchRequiresSources // patchDependenciesSources);
+    (patchFrom // patchSource // patchVersion // patchRequiresSources // patchDependenciesSources);
+
 
   # Description: Takes a Path to a lockfile and returns the patched version as attribute set
   # Type: Fn -> Path -> Set
@@ -240,9 +253,12 @@ rec {
         # because it only contains the branch name. Therefore we cannot substitute with a nix store path.
         # If we leave the dependency unchanged, npm will try to resolve it and fail. We therefore substitute with a
         # wildcard dependency, which will make npm look at the lockfile.
-        if lib.hasPrefix "github:" version then
-          "*"
+        if lib.hasPrefix "github:" version
+        then "*"
+        else if builtins.match ".*@.*" version != null # handle version npm:name@number
+        then (getVersionNumber version)
         else version);
+
       dependencies = if (content ? dependencies) then lib.mapAttrs patchDep content.dependencies else { };
       devDependencies = if (content ? devDependencies) then lib.mapAttrs patchDep content.devDependencies else { };
     in
@@ -399,13 +415,20 @@ rec {
           ln -sf ${patchedPackagefile (sourceHashFunc githubSourceHashMap) packageJson} package.json
         '';
 
+        # debug buildPhase
+        # cat package-lock.json | ${jq}/bin/jq -r
+        # cat package.json | ${jq}/bin/jq -r
+        # echo "use npm version $(npm --version) in $(${which}/bin/which npm)"
         buildPhase = ''
           runHook preBuild
           mkdir -p node_modules/.hooks
           declare -pf > $TMP/preinstall-env
           ln -s ${preinstall_node_modules}/node_modules/.hooks/prepare node_modules/.hooks/preinstall
           export HOME=.
-          npm install --offline --nodedir=${nodeSource nodejs}
+
+          echo "run 'npm install' with npm version $(npm --version) ..."
+          npm install --offline --nodedir=${nodeSource nodejs} --progress=false # --loglevel=verbose
+
           test -d node_modules/.bin && patchShebangs node_modules/.bin
           rm -rf node_modules/.hooks
           runHook postBuild
