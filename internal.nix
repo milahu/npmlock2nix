@@ -383,7 +383,7 @@ rec {
 
           if test -d node_modules; then
             if [ $(ls -1 node_modules | wc -l) -gt 0 ] || [ -e node_modules/.bin ]; then
-              mv node_modules $out/
+              cp -r node_modules $out/
               if test -d $out/node_modules/.bin; then
                 ln -s $out/node_modules/.bin $out/bin
               fi
