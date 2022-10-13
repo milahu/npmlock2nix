@@ -475,7 +475,7 @@ rec {
         };
 
       in
-      stdenv.mkDerivation (extraArgs // {
+      stdenv.mkDerivation ({
         pname = lib.strings.sanitizeDerivationName lockfile.name;
         version = lockfile.version or "0";
         inherit buildInputs preBuild postBuild;
