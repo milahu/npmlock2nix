@@ -11,6 +11,8 @@
 , fetchFromGitHub
 , callPackage
 }:
+let
+self =
 rec {
   # Versions >= 15 use npm >= 7, which uses npm lockfile version 2, which we don't support yet
   # See the assertion in the node_modules function
