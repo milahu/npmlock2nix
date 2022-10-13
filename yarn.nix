@@ -105,12 +105,71 @@ let
     in
     map parseBlock (builtins.filter (block: block != "") (splitBlocks content));
 
-  patchDep = name: dep:
+  /*
+    nix does not accept sha1 hashes
+
+    fetchurl {
+      url = "https://registry.yarnpkg.com/@gar/promisify/-/promisify-1.1.2.tgz";
+      hash = "sha1-30aa825f11d438671d585bd44e7fd564535fc210";
+    }
+
+    error: invalid SRI hash '30aa825f11d438671d585bd44e7fd564535fc210'
+  */
+  # guess hash type
+  # examples:
+  # 30aa825f11d438671d585bd44e7fd564535fc210 -> sha1
+  /*
+  guessSriHash = integrity:
     let
-      src = internal.makeSource name dep;
+      len = lib.stringLength integrity;
+    in
+    if (len == 40 && (builtins.match "[0-9a-fA-F]{40}" integrity != null))
+    then
+      lib.traceSeq { inherit integrity; sriHash = "sha1-${integrity}"; }
+      "sha1-${integrity}"
+    else throw "guessSriHash: TODO implement integrity=${integrity}";
+  */
+
+  patchDep = name: dep:
+    assert (!(dep ? integrity)) ->
+      throw "dep.integrity is missing on dep: ${builtins.toJSON dep}";
+      /*
+
+        TODO allow user to set missing integrity
+
+        example:
+
+        "tree-sitter@https://github.com/joaomoreno/node-tree-sitter/releases/download/v0.20.0/tree-sitter-0.20.0.tgz":
+          version "0.20.0"
+          resolved "https://github.com/joaomoreno/node-tree-sitter/releases/download/v0.20.0/tree-sitter-0.20.0.tgz#5679001aaa698c7cddc38ea23b49b9361b69215f"
+          dependencies:
+            nan "^2.14.0"
+            prebuild-install "^6.0.1"
+
+      */
+    let
+      resolvedParts = lib.splitString "#" dep.resolved;
+      # TODO remove hash suffix from dep.resolved
+      parsedDep = dep // {
+        resolved = builtins.elemAt resolvedParts 0;
+        # get integrity from resolved
+        # example:
+        # https://github.com/joaomoreno/node-tree-sitter/releases/download/v0.20.0/tree-sitter-0.20.0.tgz#5679001aaa698c7cddc38ea23b49b9361b69215f
+        # -> integrity = 30aa825f11d438671d585bd44e7fd564535fc210
+        #integrity = guessSriHash (builtins.elemAt resolvedParts 1);
+      };
+      sourceOptions = { nodejs = default_nodejs; }; # TODO expose
+      src = (
+        lib.traceSeq { inherit parsedDep; }
+        (
+        assert builtins.length resolvedParts != 2 ->
+          throw "unexpected format in resolved '${dep.resolved}'. expected url#hash";
+        internal.makeSource sourceOptions name parsedDep
+        )
+      );
     in
     dep // {
-      resolved = "file:" + src;
+      resolved = src.resolved;
     };
 
   patchFile = filePath:
