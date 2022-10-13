@@ -6,7 +6,6 @@ testLib.runTests {
       integrity = "sha1-hrGk3k+s4YCsVFqD8VA1I9j+0RU=";
     };
     expected = {
-      name = "_test";
       url = "https://example.com/package.tgz";
       hash = "sha1-hrGk3k+s4YCsVFqD8VA1I9j+0RU=";
     };
