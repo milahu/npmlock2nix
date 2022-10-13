@@ -39,11 +39,6 @@ rec {
 
   yarn = callPackage ./yarn.nix { internal = self; };
 
-  # Description: Replace all "bad" characters (those that aren't allowed in nix paths) with underscores.
-  # Type: String -> String
-  makeSafeName = name:
-    lib.substring 0 20 (lib.replaceStrings ["@" "/" "^" "\"" "," " " "~" "|" ">" "<" "*"] ["_" "_" "_" "_" "_" "_" "_" "_" "_" "_" "_"] name);
-
   # Description: Turns an npm lockfile dependency into an attribute set as needed by fetchurl
   # Type: String -> Set -> Set
   makeSourceAttrs = name: dependency:
@@ -186,8 +181,12 @@ rec {
         if sourceOverrides ? ${name}
         # If we have modification to this source, unpack the tgz, apply the
         # patches and repack the tgz
-        then sourceOverrides.${name} sourceInfo drv
-        else src;
+        then
+        builtins.trace "makeUrlSource: tgz = patched"
+        sourceOverrides.${name} sourceInfo drv
+        else
+        builtins.trace "makeUrlSource: tgz = src"
+        src;
       resolved = "file://" + toString tgz;
     in
     dependency // { inherit resolved; } // lib.optionalAttrs (sourceOverrides ? ${name}) {
@@ -204,10 +203,13 @@ rec {
     assert (builtins.typeOf dependency != "set") ->
       throw "Specification of dependency ${toString name} must be a set";
     if dependency ? resolved && dependency ? integrity then
+      builtins.trace "calling makeUrlSource"
       makeUrlSource sourceOptions name dependency
     else if dependency ? from && dependency ? version then
+      builtins.trace "calling makeGithubSource"
       makeGithubSource sourceOptions name dependency
     else if shouldUseVersionAsUrl dependency then
+      builtins.trace "calling makeSource"
       makeSource sourceOptions name (dependency // { resolved = dependency.version; })
     else throw "A valid dependency consists of at least the resolved and integrity field. Missing one or both of them for `${name}`. The object I got looks like this: ${builtins.toJSON dependency}";
 
