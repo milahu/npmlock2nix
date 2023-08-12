@@ -1,4 +1,17 @@
-{ nodejs, jq, openssl, coreutils, stdenv, mkShell, lib, fetchurl, writeText, writeShellScript, runCommand, fetchFromGitHub, callPackage }:
+{ lib
+, nodejs
+, jq
+, openssl
+, coreutils
+, stdenv
+, mkShell
+, fetchurl
+, writeText
+, writeShellScript
+, runCommand
+, fetchFromGitHub
+, callPackage
+}:
 
 let self =
 
