@@ -35,10 +35,11 @@ let
   # Type: String -> Attrset
   parseBlock = block:
     let
-      getField = fieldName: prefix: body:
+      getField = fieldName: prefixes: body:
         let
-          ls = builtins.filter (lib.hasPrefix prefix) body;
-          line = assert builtins.length ls == 0 -> throw "no ${fieldName} line found in block for package ${name}"; let x = builtins.head ls; in builtins.substring (builtins.stringLength prefix) (builtins.stringLength x) x;
+          cutPrefix = prefix: x: builtins.substring (builtins.stringLength prefix) (builtins.stringLength x) x;
+          ls = lib.flatten (map (prefix: map (cutPrefix prefix) (builtins.filter (lib.hasPrefix prefix) body)) prefixes);
+          line = assert builtins.length ls == 0 -> throw "no ${fieldName} line found in block for package ${name}"; builtins.head ls;
         in
         line;
 
@@ -58,9 +59,9 @@ let
         in
         strippedLines;
 
-      version = unquote (getField "version" "version " body);
-      resolved = unquote (getField "resolved" "resolved " body);
-      integrity = getField "integrity" "integrity " body;
+      version = unquote (getField "version" ["version "] body);
+      resolved = unquote (getField "resolved" ["resolved "] body);
+      integrity = getField "integrity" ["integrity "] body;
 
       dependencies = parseDependencies body;
     in
