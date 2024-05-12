@@ -8,7 +8,15 @@ let
   splitBlocks = text:
     assert builtins.typeOf text != "string" -> throw "Expected the argument text to be of type string.";
     let blocks = builtins.split "\n\n" text;
-    in builtins.filter (x: builtins.typeOf x == "string") blocks;
+    in builtins.filter (x: (
+      builtins.typeOf x == "string" &&
+      # fix: error: no resolved line found in block for package __metadata
+      # ignore the metadata block
+      #   __metadata:
+      #     version: 8
+      #     cacheKey: 10
+      builtins.substring 0 11 x != "__metadata:"
+    )) blocks;
 
 
   # Description: Unquote a given string, e.g remove the quotes around a value
