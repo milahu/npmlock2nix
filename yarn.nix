@@ -1,5 +1,12 @@
 # Helper library to parse yarn.lock files that are some custom format and not just JSON :(
-{ lib, internal, stdenv, nodejs, yarn, writeText }:
+{ lib
+, internal
+, stdenv
+, nodejs
+, yarn
+, writeText
+}:
+
 let
   default_nodejs = nodejs;
 
