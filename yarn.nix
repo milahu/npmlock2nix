@@ -121,30 +121,35 @@ let
     in
     map parseBlock (builtins.filter (block: block != "") (splitBlocks content));
 
-  /*
-    nix does not accept sha1 hashes
-
-    fetchurl {
-      url = "https://registry.yarnpkg.com/@gar/promisify/-/promisify-1.1.2.tgz";
-      hash = "sha1-30aa825f11d438671d585bd44e7fd564535fc210";
-    }
-
-    error: invalid SRI hash '30aa825f11d438671d585bd44e7fd564535fc210'
-  */
   # guess hash type
-  # examples:
-  # 30aa825f11d438671d585bd44e7fd564535fc210 -> sha1
-  /*
-  guessSriHash = integrity:
+  guessSriHash = integrityPadded:
     let
+      integrity = builtins.head (
+        let parts = builtins.match "([^=]+)=*" integrityPadded; in
+        assert (parts != null) ->
+          throw "guessSriHash: failed to parse integrityPadded ${builtins.toJSON integrityPadded}";
+        parts
+      );
       len = lib.stringLength integrity;
+      isBase16 = builtins.match "[0-9a-fA-F]+" integrity != null;
+      isBase64 = builtins.match "[0-9a-zA-Z/+]+" integrity != null;
+      prefix = (
+        # base16 -> ":" separator
+        if len == 40 && isBase16 then "sha1:" else
+        if len == 56 && isBase16 then "sha224:" else
+        if len == 64 && isBase16 then "sha256:" else
+        if len == 96 && isBase16 then "sha384:" else
+        if len == 128 && isBase16 then "sha512:" else
+        # base64 -> "-" separator
+        if len == 27 && isBase64 then "sha1-" else
+        if len == 40 && isBase16 then "sha224-" else
+        if len == 43 && isBase64 then "sha256-" else
+        if len == 64 && isBase64 then "sha384-" else
+        if len == 86 && isBase64 then "sha512-" else
+        throw "guessSriHash: TODO implement integrity ${builtins.toJSON integrity}"
+      );
     in
-    if (len == 40 && (builtins.match "[0-9a-fA-F]{40}" integrity != null))
-    then
-      lib.traceSeq { inherit integrity; sriHash = "sha1-${integrity}"; }
-      "sha1-${integrity}"
-    else throw "guessSriHash: TODO implement integrity=${integrity}";
-  */
+    (prefix + integrity);
 
   patchDep = name: dep:
     assert (!(dep ? integrity)) ->
