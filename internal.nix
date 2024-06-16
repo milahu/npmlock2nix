@@ -394,7 +394,9 @@ rec {
 
   # Description: Parses the lock file as json and returns an attribute set
   # Type: Path -> Set
-  readPackageLikeFile = file:
+  readPackageLikeFile = file: (
+    if builtins.match ".*\\.yaml" file != null then readPackageLikeYAMLFile file else
+    (
     assert (builtins.typeOf file != "path" && builtins.typeOf file != "string") ->
       throw "file ${toString file} must be a path or string";
     let
@@ -406,7 +408,21 @@ rec {
     throw "The NPM lockfile must be a valid JSON object";
     # if a lockfile doesn't declare dependencies ensure that we have an empty
     # set. This makes the consuming code eaiser.
-    if json ? dependencies then json else json // { dependencies = { }; };
+    if json ? dependencies then json else json // { dependencies = { }; }
+    )
+  );
+
+  fromYAML = callPackage ./nix-yaml/from-yaml.nix { };
+
+  # FIXME implement ...
+  readPackageLikeYAMLFile = file: (
+    builtins.trace "parsing yaml file ${file}"
+    let
+      content = builtins.readFile file;
+      data = fromYAML content;
+    in
+    data
+  );
 
   # fixme: this fails when the common value is null
   listsHaveCommonValue = list1: list2:
