@@ -395,7 +395,7 @@ rec {
   # Description: Parses the lock file as json and returns an attribute set
   # Type: Path -> Set
   readPackageLikeFile = file: (
-    if builtins.match ".*\\.yaml" file != null then readPackageLikeYAMLFile file else
+    if builtins.match ".*\\.yaml" (builtins.toString file) != null then readPackageLikeYAMLFile file else
     (
     assert (builtins.typeOf file != "path" && builtins.typeOf file != "string") ->
       throw "file ${toString file} must be a path or string";
