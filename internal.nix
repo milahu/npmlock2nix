@@ -417,11 +417,13 @@ rec {
   # FIXME implement ...
   readPackageLikeYAMLFile = file: (
     builtins.trace "parsing yaml file ${file}"
+    (
     let
       content = builtins.readFile file;
       data = fromYAML content;
     in
     data
+    )
   );
 
   # fixme: this fails when the common value is null
@@ -752,6 +754,7 @@ rec {
   makeSourceAttrsV1 = name: dependency:
     assert !(dependency ? resolved) -> throw "Missing `resolved` attribute for dependency `${name}`.";
     assert !(dependency ? integrity) -> throw "Missing `integrity` attribute for dependency `${name}`.";
+    lib.traceSeq { _f = "makeSourceAttrsV1"; inherit name dependency; }
     {
       url = dependency.resolved;
       # FIXME: for backwards compatibility we should probably set the
@@ -797,7 +800,7 @@ rec {
           sourceOptions.packagesVersions."node_modules/${name}".version
         )
         else (
-          (builtins.trace "npmlock2nix: ${name}:latest -> ${name}:latest (FIXME find locked version in sourceOptions.packagesVersions names ${builtins.toJSON (builtins.attrNames sourceOptions.packagesVersions)})")
+          #(builtins.trace "npmlock2nix: ${name}:latest -> ${name}:latest (FIXME find locked version in sourceOptions.packagesVersions names ${builtins.toJSON (builtins.attrNames sourceOptions.packagesVersions)})")
           version
         ));
       dependencies = if (content ? dependencies) then lib.mapAttrs patchDep content.dependencies else { };
@@ -864,6 +867,8 @@ rec {
     in
     (getAttrs [ "src" "nodejs" ] attrs // node_modules_attrs);
 
+  # TODO rename sourceHashFunc to sourceHashFuncFunc
+  # or: rename sourceHashFunc to sourceHash
   # Description: Takes a dependency spec and a map of github sources/hashes and returns either the map or 'null'
   # Type: Set -> Set -> Set | null
   sourceHashFunc = githubSourceHashMap: spec:
@@ -872,7 +877,7 @@ rec {
         [ spec.value.org spec.value.repo spec.value.rev ]
         (
           lib.traceSeq
-            "[npmlock2nix] warning: missing attr in githubSourceHashMap: ${spec.value.org}.${spec.value.repo}.${spec.value.rev}"
+            ''[npmlock2nix] warning: missing item in githubSourceHashMap: "${spec.value.org}"."${spec.value.repo}"."${spec.value.rev}" = "";''
             null
         )
         githubSourceHashMap
@@ -917,6 +922,8 @@ rec {
         packagefile = readPackageLikeFile packageJson;
 
         sourceOptions = {
+          # TODO rename sourceHashFunc to sourceHash
+          # or: rename sourceHashFunc to sourceHashFuncFunc
           sourceHashFunc = sourceHashFunc githubSourceHashMap;
           inherit sourceOverrides symlinkNodeModules nodeHostCpuNames nodeHostOsNames;
           nodejs = if symlinkNodeModules then (nodejs-hide-symlinks.override { inherit nodejs; }) else nodejs;
