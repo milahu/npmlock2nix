@@ -394,7 +394,10 @@ rec {
 
   # Description: Parses the lock file as json and returns an attribute set
   # Type: Path -> Set
-  readPackageLikeFile = file: (
+  readPackageLikeFile = file:
+    let _file = file; in
+    let file = if (_file ? outPath) then _file.outPath else _file; in
+    (
     if builtins.match ".*\\.yaml" (builtins.toString file) != null then readPackageLikeYAMLFile file else
     (
     assert (builtins.typeOf file != "path" && builtins.typeOf file != "string") ->
